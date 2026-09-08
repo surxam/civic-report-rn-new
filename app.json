@@ -6,10 +6,9 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "backgroundColor": "#111212"
-    },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "android": {
       "package": "com.civicreport.app",
       "adaptiveIcon": {
@@ -27,6 +26,14 @@
         {
           "photosPermission": "Civic Report a besoin d'accéder à vos photos pour illustrer un signalement.",
           "cameraPermission": "Civic Report a besoin de la caméra pour photographier un problème."
+        }
+      ],
+      "expo-status-bar",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#111212"
         }
       ]
     ]

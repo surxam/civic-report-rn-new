@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Civic Report",
+    "slug": "civic-report",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#111212"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "android": {
+      "package": "com.civicreport.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#111212"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Civic Report a besoin d'accéder à vos photos pour illustrer un signalement.",
+          "cameraPermission": "Civic Report a besoin de la caméra pour photographier un problème."
+        }
+      ]
+    ]
+  }
+}

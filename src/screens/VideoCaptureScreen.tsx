@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Platform, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -12,6 +12,12 @@ import type { ScreenProps } from "../types";
 /** Durée maximale d'enregistrement, en millisecondes. Coupure pilotée nous-mêmes
  *  (plutôt que `videoMaxDuration` de la caméra système, non fiable sur Android). */
 const MAX_DURATION_MS = 30_000;
+
+/** Ratio réellement enregistré par la caméra sur Android (voir prop `ratio` plus bas).
+ *  On dimensionne l'aperçu sur cette même valeur pour qu'il montre exactement le cadre
+ *  qui sera filmé — sans ça, Android recadre/zoome l'aperçu pour remplir l'écran
+ *  (scaleType FILL), ce qui ne correspond plus à la vidéo réellement enregistrée. */
+const CAMERA_RATIO_HEIGHT_OVER_WIDTH = 16 / 9;
 
 export default function VideoCaptureScreen({ navigation }: ScreenProps<"VideoCapture">) {
   const dispatch = useAppDispatch();
@@ -26,8 +32,24 @@ export default function VideoCaptureScreen({ navigation }: ScreenProps<"VideoCap
   const [elapsedMs, setElapsedMs] = useState(0);
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
 
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  // Sur Android on force `ratio="16:9"` (voir plus bas) : on calcule ici la boîte à cette
+  // même proportion pour que l'aperçu affiché == le cadre réellement enregistré, sans
+  // recadrage ni zoom. On part de la largeur de l'écran, et si la hauteur obtenue dépasse
+  // l'écran (cas rare, tablette large), on part de la hauteur à la place.
+  const cameraBoxSize = (() => {
+    if (Platform.OS !== "android") return { width: windowWidth, height: windowHeight };
+    const heightFromWidth = windowWidth * CAMERA_RATIO_HEIGHT_OVER_WIDTH;
+    if (heightFromWidth <= windowHeight) return { width: windowWidth, height: heightFromWidth };
+    return { width: windowHeight / CAMERA_RATIO_HEIGHT_OVER_WIDTH, height: windowHeight };
+  })();
+
   const player = useVideoPlayer(recordedUri ?? "", (p) => {
     p.loop = true;
+    // Le son est bien enregistré dans le fichier (pour le signalement), mais on ne le
+    // rejoue pas à l'écran de relecture pour éviter le larsen avec le micro qui vient
+    // de capturer, et parce que l'utilisateur n'a pas besoin de l'entendre ici.
+    p.muted = true;
   });
 
   useEffect(() => {
@@ -128,7 +150,9 @@ export default function VideoCaptureScreen({ navigation }: ScreenProps<"VideoCap
   if (recordedUri) {
     return (
       <View style={styles.fill}>
-        <VideoView style={styles.fill} player={player} contentFit="contain" nativeControls={false} />
+        <View style={styles.cameraCenterer}>
+          <VideoView style={cameraBoxSize} player={player} contentFit="cover" nativeControls={false} />
+        </View>
 
         <SafeAreaView style={styles.overlay} pointerEvents="box-none">
           <View style={styles.topBar}>
@@ -152,15 +176,17 @@ export default function VideoCaptureScreen({ navigation }: ScreenProps<"VideoCap
 
   return (
     <View style={styles.fill}>
-      <CameraView
-        ref={cameraRef}
-        style={styles.fill}
-        facing="back"
-        mode="video"
-        mute={false}
-        zoom={0}
-        ratio={Platform.OS === "android" ? "16:9" : undefined}
-      />
+      <View style={styles.cameraCenterer}>
+        <CameraView
+          ref={cameraRef}
+          style={cameraBoxSize}
+          facing="back"
+          mode="video"
+          mute={false}
+          zoom={0}
+          ratio={Platform.OS === "android" ? "16:9" : undefined}
+        />
+      </View>
 
       <SafeAreaView style={styles.overlay} pointerEvents="box-none">
         <View style={styles.topBar}>
@@ -192,6 +218,7 @@ export default function VideoCaptureScreen({ navigation }: ScreenProps<"VideoCap
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: "#000" },
+  cameraCenterer: { flex: 1, alignItems: "center", justifyContent: "center" },
   overlay: { ...StyleSheet.absoluteFill, justifyContent: "space-between" },
   topBar: {
     flexDirection: "row",

@@ -65,6 +65,8 @@ export interface ReportDraft {
   categoryId: string | null;
   type: string;
   address: string;
+  latitude: number | null;
+  longitude: number | null;
   title: string;
   description: string;
   photos: string[]; // uris locales choisies avec expo-image-picker
@@ -76,6 +78,7 @@ export type RootStackParamList = {
   Login: undefined;
   Categories: undefined;
   MediaChoice: undefined;
+  VideoCapture: undefined;
   ReportForm: undefined;
   History: undefined;
   Profile: undefined;

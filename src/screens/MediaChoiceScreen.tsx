@@ -45,18 +45,10 @@ export default function MediaChoiceScreen({ navigation }: ScreenProps<"MediaChoi
     navigation.navigate("ReportForm");
   };
 
-  const pickVideo = async () => {
-    const granted = await ensureCameraAccess();
-    if (!granted) return;
-
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ["videos"],
-      videoMaxDuration: 30,
-    });
-    if (result.canceled || !result.assets?.length) return;
-    dispatch(updateDraft({ video: result.assets[0].uri }));
-    toast("Vidéo ajoutée.");
-    navigation.navigate("ReportForm");
+  const pickVideo = () => {
+    // La limite de 30s est pilotée nous-mêmes dans VideoCaptureScreen : la caméra système
+    // (via videoMaxDuration d'expo-image-picker) ne coupe pas de façon fiable sur Android.
+    navigation.navigate("VideoCapture");
   };
 
   return (

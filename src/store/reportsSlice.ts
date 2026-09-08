@@ -10,6 +10,8 @@ const emptyDraft: ReportDraft = {
   categoryId: null,
   type: "",
   address: "Avenue Habib Bourguiba, Tunis",
+  latitude: 36.7992,
+  longitude: 10.1817,
   title: "",
   description: "",
   photos: [], // uris locales choisies avec expo-image-picker
@@ -112,6 +114,8 @@ export const submitReport = createAsyncThunk<
       title: draft.title,
       description: draft.description,
       address: draft.address,
+      latitude: draft.latitude,
+      longitude: draft.longitude,
       status: "pending" as ReportStatus,
     })
     .select()

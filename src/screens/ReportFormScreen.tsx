@@ -1,7 +1,9 @@
-import { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import { useState, useRef } from "react";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
+import LocationMap from "../components/LocationMap";
 import Screen from "../components/Screen";
 import FormField from "../components/FormField";
 import Button from "../components/Button";
@@ -17,6 +19,12 @@ export default function ReportFormScreen({ navigation }: ScreenProps<"ReportForm
   const draft = useAppSelector(selectDraft);
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const [locating, setLocating] = useState(false);
+  // `locating` (state) ne se met à jour qu'au prochain rendu : sur un double-tap rapide, les deux
+  // appels peuvent passer la garde `if (locating) return` avant que React n'ait eu le temps de
+  // committer le premier `setLocating(true)`. Cette ref est mise à jour de façon synchrone et
+  // sert de verrou fiable contre les déclenchements concurrents (2 demandes de permission).
+  const isLocatingRef = useRef(false);
   const [error, setError] = useState("");
 
   const category = categoryById(draft.categoryId);
@@ -47,6 +55,90 @@ export default function ReportFormScreen({ navigation }: ScreenProps<"ReportForm
   };
 
   const removeVideo = () => update({ video: null });
+
+  /** Formate un résultat de géocodage inverse en une adresse lisible et compacte. */
+  const formatAddress = (place: Location.LocationGeocodedAddress) => {
+    const street = [place.streetNumber, place.street].filter(Boolean).join(" ");
+    const locality = [place.postalCode, place.city].filter(Boolean).join(" ");
+    return [street, locality].filter(Boolean).join(", ");
+  };
+
+  const handleLocate = async () => {
+    if (isLocatingRef.current) return;
+    isLocatingRef.current = true;
+    setLocating(true);
+    try {
+      // On vérifie d'abord le statut actuel : appeler requestForegroundPermissionsAsync() alors
+      // que la permission est déjà accordée peut, sur certains appareils/versions d'Android,
+      // rouvrir une seconde fois la même fenêtre système. On ne demande donc que si nécessaire.
+      let status = (await Location.getForegroundPermissionsAsync()).status;
+      if (status !== "granted") {
+        status = (await Location.requestForegroundPermissionsAsync()).status;
+      }
+      if (status !== "granted") {
+        toast("Autorisez l'accès à la position pour continuer.");
+        return;
+      }
+
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
+        // Accepter la permission d'app n'allume pas le GPS de l'appareil, ce sont deux choses
+        // distinctes sur Android. On déclenche la boîte de dialogue système « Activer la
+        // localisation » (identique à celle de Google Maps) plutôt que de laisser l'utilisateur
+        // le faire manuellement dans les réglages.
+        if (Platform.OS === "android") {
+          try {
+            await Location.enableNetworkProviderAsync();
+          } catch {
+            toast("Localisation refusée. Activez-la dans les réglages de votre appareil.");
+            return;
+          }
+        } else {
+          toast("Activez la localisation dans les réglages de votre appareil.");
+          return;
+        }
+      }
+
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const [place] = await Location.reverseGeocodeAsync({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+
+      const address = place ? formatAddress(place) : "";
+      update({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        ...(address ? { address } : {}),
+      });
+      if (address) {
+        toast("Position récupérée.");
+      } else {
+        toast("Position récupérée, mais adresse introuvable.");
+      }
+    } catch {
+      toast("Impossible de récupérer votre position.");
+    } finally {
+      isLocatingRef.current = false;
+      setLocating(false);
+    }
+  };
+
+  /** Appelé quand l'utilisateur tape sur la carte ou déplace le marqueur : on met à jour les
+   *  coordonnées immédiatement, et on tente de retrouver l'adresse correspondante. */
+  const handleMapLocationChange = async (latitude: number, longitude: number) => {
+    update({ latitude, longitude });
+    try {
+      const [place] = await Location.reverseGeocodeAsync({ latitude, longitude });
+      const address = place ? formatAddress(place) : "";
+      if (address) update({ address });
+    } catch {
+      // on garde les coordonnées même si le géocodage inverse échoue
+    }
+  };
 
   const onCancel = () => {
     dispatch(resetDraft());
@@ -93,16 +185,26 @@ export default function ReportFormScreen({ navigation }: ScreenProps<"ReportForm
         ))}
       </ScrollView>
 
-      <Text style={styles.sectionLabel}>2. Localisation</Text>
+      <View style={styles.sectionRow}>
+        <Text style={styles.sectionLabelInline}>2. Localisation</Text>
+        <TouchableOpacity style={styles.locateBtn} onPress={handleLocate} disabled={locating}>
+          <Ionicons name="locate-outline" size={16} color={colors.primaryBright} />
+          <Text style={styles.locateText}>{locating ? "Recherche…" : "Ma position"}</Text>
+        </TouchableOpacity>
+      </View>
       <FormField
         value={draft.address}
         onChangeText={(address) => update({ address })}
         placeholder="Adresse ou lieu du problème"
       />
-      <TouchableOpacity style={styles.locateBtn} onPress={() => toast("Position simulée : " + draft.address)}>
-        <Ionicons name="locate-outline" size={16} color={colors.primaryBright} />
-        <Text style={styles.locateText}>Ma position</Text>
-      </TouchableOpacity>
+      {draft.latitude != null && draft.longitude != null && (
+        <LocationMap
+          latitude={draft.latitude}
+          longitude={draft.longitude}
+          onLocationChange={handleMapLocationChange}
+          style={styles.map}
+        />
+      )}
 
       <Text style={styles.sectionLabel}>3. Titre du rapport</Text>
       <FormField
@@ -168,6 +270,15 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: 20, fontWeight: "800" },
   subtitle: { color: colors.muted, fontSize: 13, marginTop: 2 },
   sectionLabel: { color: colors.text, fontWeight: "700", fontSize: 14, marginTop: spacing.md, marginBottom: spacing.xs },
+  sectionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  sectionLabelInline: { color: colors.text, fontWeight: "700", fontSize: 14 },
+  map: { marginTop: spacing.sm },
   chipRow: { marginBottom: spacing.xs },
   chip: {
     paddingHorizontal: spacing.md,
@@ -181,7 +292,7 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { color: colors.muted, fontSize: 13 },
   chipTextActive: { color: colors.text, fontWeight: "600" },
-  locateBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: spacing.sm, alignSelf: "flex-start" },
+  locateBtn: { flexDirection: "row", alignItems: "center", gap: 6 },
   locateText: { color: colors.primaryBright, fontSize: 13, fontWeight: "600" },
   hint: { color: colors.subtle, fontSize: 12, marginBottom: spacing.xs },
   mediaRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },

@@ -9,6 +9,7 @@ import type { RootStackParamList } from "../types";
 import LoginScreen from "../screens/LoginScreen";
 import CategoriesScreen from "../screens/CategoriesScreen";
 import MediaChoiceScreen from "../screens/MediaChoiceScreen";
+import VideoCaptureScreen from "../screens/VideoCaptureScreen";
 import ReportFormScreen from "../screens/ReportFormScreen";
 import HistoryScreen from "../screens/HistoryScreen";
 import ProfileScreen from "../screens/ProfileScreen";
@@ -41,6 +42,7 @@ export default function RootNavigator() {
           <>
             <Stack.Screen name="Categories" component={CategoriesScreen} />
             <Stack.Screen name="MediaChoice" component={MediaChoiceScreen} />
+            <Stack.Screen name="VideoCapture" component={VideoCaptureScreen} />
             <Stack.Screen name="ReportForm" component={ReportFormScreen} />
             <Stack.Screen name="History" component={HistoryScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />

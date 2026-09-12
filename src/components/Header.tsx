@@ -1,10 +1,8 @@
-import { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius } from "../theme/colors";
 import { selectInitials } from "../store/authSlice";
 import { useAppSelector } from "../store/hooks";
-import DrawerMenu from "./DrawerMenu";
 import type { AppNavigation } from "../types";
 
 interface HeaderProps {
@@ -18,26 +16,21 @@ interface HeaderProps {
 /**
  * Header réutilisable (topbar) — équivalent de la fonction header() dans app.js.
  * Props :
- *  - navigation: nécessaire pour que le menu tiroir (hamburger) puisse naviguer
- *  - back: affiche une flèche retour au lieu du logo/menu
+ *  - navigation: conservé pour compat (plus utilisé ici depuis le retrait du menu tiroir)
+ *  - back: affiche une flèche retour au lieu du logo
  *  - onBack: callback du bouton retour
  *  - tools: affiche recherche/filtre (utilisé sur l'historique)
  *  - onProfilePress: callback de l'avatar
  */
-export default function Header({ navigation, back = false, onBack, tools = false, onProfilePress }: HeaderProps) {
+export default function Header({ back = false, onBack, onProfilePress }: HeaderProps) {
   const initials = useAppSelector(selectInitials);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <View style={styles.header}>
       <View style={styles.left}>
-        {back ? (
+        {back && (
           <TouchableOpacity onPress={onBack} style={styles.iconBtn} accessibilityLabel="Retour">
             <Ionicons name="arrow-back" size={20} color={colors.text} />
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.iconBtn} accessibilityLabel="Ouvrir le menu">
-            <Ionicons name="menu" size={20} color={colors.text} />
           </TouchableOpacity>
         )}
         <View style={styles.brand}>
@@ -54,8 +47,6 @@ export default function Header({ navigation, back = false, onBack, tools = false
           <Text style={styles.avatarText}>{initials}</Text>
         </TouchableOpacity>
       </View>
-
-      <DrawerMenu visible={menuOpen} onClose={() => setMenuOpen(false)} navigation={navigation} />
     </View>
   );
 }

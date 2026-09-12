@@ -17,7 +17,7 @@ const MAX_DURATION_MS = 30_000;
  *  On dimensionne l'aperçu sur cette même valeur pour qu'il montre exactement le cadre
  *  qui sera filmé — sans ça, Android recadre/zoome l'aperçu pour remplir l'écran
  *  (scaleType FILL), ce qui ne correspond plus à la vidéo réellement enregistrée. */
-const CAMERA_RATIO_HEIGHT_OVER_WIDTH = 16 / 9;
+const CAMERA_RATIO_HEIGHT_OVER_WIDTH = 4 / 3;
 
 export default function VideoCaptureScreen({ navigation }: ScreenProps<"VideoCapture">) {
   const dispatch = useAppDispatch();
@@ -184,7 +184,7 @@ export default function VideoCaptureScreen({ navigation }: ScreenProps<"VideoCap
           mode="video"
           mute={false}
           zoom={0}
-          ratio={Platform.OS === "android" ? "16:9" : undefined}
+          ratio={Platform.OS === "android" ? "4:3" : undefined}
         />
       </View>
 
